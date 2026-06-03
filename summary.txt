@@ -1,0 +1,26 @@
+Instagram Automation Solution Summary
+====================================
+
+Overview
+--------
+The Instagram upload automation was successfully implemented and is now working flawlessly for both photos and videos. We are **not** using the `aiograpi` library, nor are we using an official Instagram API key.
+
+Why we abandoned `aiograpi`:
+----------------------------
+`aiograpi` is an unofficial Python library that attempts to trick Instagram's servers by mimicking the internal API requests of the Android mobile app. Instagram's security systems are highly aggressive against this behavior and frequently flag or block these requests, resulting in persistent `403 Forbidden: login_required` errors and account lockouts.
+
+Our Working Solution: Browser Automation (Playwright)
+-------------------------------------------------------
+Instead of relying on unstable reverse-engineered APIs, we built a robust Browser Automation script using **Playwright**.
+
+Here is how it works:
+1. The script physically launches a real Microsoft Edge browser instance in the background.
+2. It navigates to the Instagram web interface (instagram.com) and logs in.
+3. It clicks the "Create Post" button, exactly as a human would.
+4. It bypasses Instagram's anti-bot file drop restrictions by triggering the native operating system's File Chooser dialog to select the photo or video.
+5. It handles any intrusive pop-ups natively (such as the "Video posts are now shared as reels" modal).
+6. It types out the caption and clicks the final "Share" button.
+
+Why this is superior:
+---------------------
+By using a real web browser (Edge) configured to emulate human interactions, Instagram's security algorithms perceive the activity as a legitimate user manually uploading content from a desktop computer. This completely bypasses the harsh API blocks and provides a stable, long-term solution for automated posting.

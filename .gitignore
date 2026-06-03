@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+sessions/
+logs/
+debug_*.png
+test_*.png
+.env
+archive/
+videos/
+photos/
+reels/
