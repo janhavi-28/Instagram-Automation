@@ -6,7 +6,7 @@ USERNAME = "jkolekar06@gmail.com"
 PASSWORD = "87654321@Jk"
 
 # Scheduling
-POST_INTERVAL_HOURS = 4  # Post every X hours
+POST_INTERVAL_MINUTES = 2  # Post every X minutes
 
 # Captions & Dynamic Hashtags Configuration
 DEFAULT_HASHTAGS = "#photooftheday #instagood #explore #gorgeous #cool"

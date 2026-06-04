@@ -188,39 +188,69 @@ class InstagramUploader:
             
         return random.choice(captions) + f"\n\n{hashtags}"
 
-    def upload_media(self):
-        media_files = []
+    def upload_media(self, is_carousel=False, media_preference="any"):
+        photo_files = []
         for ext in [".jpg", ".png", ".jpeg", ".webp"]:
-            media_files.extend([(p, "photo") for p in Path(self.dirs["photos"]).glob(f"*{ext}")])
-        for ext in [".mp4", ".mov"]:
-            media_files.extend([(p, "reel") for p in Path(self.dirs["reels"]).glob(f"*{ext}")])
-            media_files.extend([(p, "video") for p in Path(self.dirs["videos"]).glob(f"*{ext}")])
+            photo_files.extend([(p, "photo") for p in Path(self.dirs["photos"]).glob(f"*{ext}")])
             
-        if not media_files:
-            log_warning("No media files found to upload.")
+        reel_files = []
+        video_files = []
+        for ext in [".mp4", ".mov"]:
+            reel_files.extend([(p, "reel") for p in Path(self.dirs["reels"]).glob(f"*{ext}")])
+            video_files.extend([(p, "video") for p in Path(self.dirs["videos"]).glob(f"*{ext}")])
+            
+        all_files = []
+        if media_preference == "image":
+            all_files = photo_files
+        elif media_preference == "video":
+            all_files = video_files
+        elif media_preference == "reel":
+            all_files = reel_files
+        else:
+            all_files = photo_files + reel_files + video_files
+            
+        if not all_files:
+            log_warning(f"No media files found for preference: {media_preference}.")
             return False
             
-        file_path, media_type = random.choice(media_files)
-        caption = self.get_random_caption(file_path)
-        
-        # Convert WEBP to JPEG if needed
-        temp_file = None
-        if media_type == "photo" and file_path.suffix.lower() == ".webp":
-            try:
-                from PIL import Image
-                log_info(f"Converting {file_path.name} to JPEG...")
-                im = Image.open(file_path).convert("RGB")
-                temp_file_path = file_path.with_suffix(".jpg")
-                im.save(temp_file_path, "jpeg")
-                temp_file = temp_file_path
-                abs_file_path = temp_file_path
-            except Exception as ex:
-                log_error(f"Failed to convert WEBP to JPEG: {ex}")
-                abs_file_path = file_path
+        selected_media = []
+        if is_carousel and media_preference in ["image", "any"]:
+            available_photos = [f for f in all_files if f[1] == "photo"]
+            if len(available_photos) >= 2:
+                available_photos.sort(key=lambda x: x[0].name)
+                count = min(5, len(available_photos))
+                selected_media = available_photos[:count]
+                log_info(f"Carousel mode selected. Found {count} photos.")
+            else:
+                log_warning("Carousel mode requested, but less than 2 photos available. Falling back to single mode.")
+                all_files.sort(key=lambda x: x[0].name)
+                selected_media = [all_files[0]]
         else:
-            abs_file_path = file_path
+            all_files.sort(key=lambda x: x[0].name)
+            selected_media = [all_files[0]]
             
-        log_info(f"Selected {file_path.name} for upload. Media type: {media_type}")
+        caption = self.get_random_caption(selected_media[0][0])
+        
+        abs_file_paths = []
+        temp_files = []
+        
+        for file_path, media_type in selected_media:
+            if media_type == "photo" and file_path.suffix.lower() == ".webp":
+                try:
+                    from PIL import Image
+                    log_info(f"Converting {file_path.name} to JPEG...")
+                    im = Image.open(file_path).convert("RGB")
+                    temp_file_path = file_path.with_suffix(".jpg")
+                    im.save(temp_file_path, "jpeg")
+                    temp_files.append(temp_file_path)
+                    abs_file_paths.append(temp_file_path)
+                except Exception as ex:
+                    log_error(f"Failed to convert WEBP to JPEG: {ex}")
+                    abs_file_paths.append(file_path)
+            else:
+                abs_file_paths.append(file_path)
+                
+        log_info(f"Selected {len(abs_file_paths)} file(s) for upload.")
         
         try:
             self.start_browser()
@@ -241,11 +271,11 @@ class InstagramUploader:
             time.sleep(1)
             
             # Use FileChooser to upload since it simulates native behavior
-            log_info(f"Uploading {file_path.name} via FileChooser...")
+            log_info(f"Uploading files via FileChooser...")
             with self.page.expect_file_chooser(timeout=15000) as fc_info:
                 self.page.locator("button:has-text('Select from computer')").click()
             file_chooser = fc_info.value
-            file_chooser.set_files(abs_file_path)
+            file_chooser.set_files(abs_file_paths)
             time.sleep(3)
             
             # Wait for media preview / Next button to appear (might take a moment to process video)
@@ -286,11 +316,14 @@ class InstagramUploader:
             
             log_info(f"Upload successful!")
             
-            if temp_file and os.path.exists(temp_file):
-                os.remove(temp_file)
+            for tf in temp_files:
+                if os.path.exists(tf):
+                    os.remove(tf)
                 
             self.close_browser()
-            self._archive_file(file_path, media_type)
+            
+            for file_path, media_type in selected_media:
+                self._archive_file(file_path, media_type)
             return True
             
         except Exception as e:
@@ -299,10 +332,12 @@ class InstagramUploader:
                 self.page.screenshot(path="debug_upload_error_current.png")
             except:
                 pass
-            if temp_file and os.path.exists(temp_file):
-                os.remove(temp_file)
+            for tf in temp_files:
+                if os.path.exists(tf):
+                    os.remove(tf)
             self.close_browser()
             return False
+
 
     def _archive_file(self, file_path, media_type):
         dest_dir = self.dirs[f"archive_{media_type}s"]
