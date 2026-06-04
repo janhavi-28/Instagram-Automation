@@ -6,6 +6,30 @@ This document describes the end-to-end workflow and inner workings of the Instag
 
 The bot is designed to upload images and videos natively to Instagram using a simulated Microsoft Edge browser. This avoids restrictive API limitations and mimics human interaction.
 
+```mermaid
+graph TD
+    A[main.py] -->|CLI Arg: --now| B[Run Instantly]
+    A -->|No Args| C[scheduler.py]
+    C -->|Timer triggers| B
+    B --> D[uploader.py]
+    
+    subgraph uploader.py Flow
+        D --> E{Session Valid?}
+        E -- No --> F[Login via UI]
+        F --> G[Save session state]
+        E -- Yes --> H[Select Media]
+        G --> H
+        H --> I[Generate/Match Caption]
+        I --> J[Upload via Playwright FileChooser]
+        J --> K[Enter Caption & Share]
+        K --> L[Archive File]
+    end
+    
+    H -.-> M[(photos/ reels/ videos/)]
+    I -.-> N[(captions/)]
+    L -.-> O[(archive/)]
+```
+
 **Core Components:**
 - **`main.py`**: The entry point. Handles CLI arguments to decide whether to run instantly or start the schedule.
 - **`scheduler.py`**: A background process that triggers the upload process at intervals defined in `config.py`.
